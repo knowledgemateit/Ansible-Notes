@@ -1,5 +1,5 @@
 ---
-- name: Install Java OpenJDK 11
+- name: Install Java OpenJDK 11 (Amazon Corretto)
   dnf:
     name: java-11-amazon-corretto-devel
     state: present
@@ -17,35 +17,35 @@
     create_home: no
     shell: /bin/false
 
-- name: Download Tomcat
+- name: Download Tomcat 9
   get_url:
-    url: "https://archive.apache.org/dist/tomcat/tomcat-9/v9.0.85/bin/apache-tomcat-9.0.85.tar.gz"
-    dest: /tmp/apache-tomcat.tar.gz
-  # Note: Tomcat 7 is very old/end-of-life; consider 9 or 10 if possible.
+    url: https://archive.apache.org/dist/tomcat/tomcat-9/v9.0.98/bin/apache-tomcat-9.0.98.tar.gz
+    dest: /tmp/apache-tomcat-9.tar.gz
 
 - name: Create Tomcat Directory
   file:
-    path: /opt/tomcat
+    path: /opt/apache-tomcat-9.0.98
     state: directory
     owner: tomcat
     group: tomcat
 
-- name: Extract archive
+- name: Extract Tomcat archive
   unarchive:
-    src: /tmp/apache-tomcat.tar.gz
-    dest: /opt/tomcat
+    src: /tmp/apache-tomcat-9.tar.gz
+    dest: /opt/
     remote_src: yes
-    extra_opts: [--strip-components=1]
     owner: tomcat
     group: tomcat
 
 - name: Symlink install directory
   file:
-    src: /opt/tomcat
+    src: /opt/apache-tomcat-9.0.98
     path: /usr/share/tomcat
     state: link
+    owner: tomcat
+    group: tomcat
 
-- name: Configure Tomcat server
+- name: Configure Tomcat server (Ports)
   template:
     src: server.xml.j2
     dest: /usr/share/tomcat/conf/server.xml
@@ -53,12 +53,20 @@
     group: tomcat
   notify: restart tomcat
 
-- name: Create Systemd Unit File
+- name: Configure Tomcat users (Admin access)
+  template:
+    src: tomcat-users.xml.j2
+    dest: /usr/share/tomcat/conf/tomcat-users.xml
+    owner: tomcat
+    group: tomcat
+  notify: restart tomcat
+
+- name: Install Systemd Unit File
   copy:
     dest: /etc/systemd/system/tomcat.service
     content: |
       [Unit]
-      Description=Apache Tomcat Web Application Container
+      Description=Apache Tomcat 9 Web Application Container
       After=network.target
 
       [Service]
@@ -66,20 +74,24 @@
       User=tomcat
       Group=tomcat
       Environment="JAVA_HOME=/usr/lib/jvm/java-11-amazon-corretto"
+      Environment="CATALINA_PID=/usr/share/tomcat/temp/tomcat.pid"
       Environment="CATALINA_HOME=/usr/share/tomcat"
+      Environment="CATALINA_BASE=/usr/share/tomcat"
       ExecStart=/usr/share/tomcat/bin/startup.sh
       ExecStop=/usr/share/tomcat/bin/shutdown.sh
 
       [Install]
       WantedBy=multi-user.target
 
-- name: Start and Enable Tomcat
+- name: Start and Enable Tomcat service
   systemd:
     name: tomcat
     state: started
     enabled: yes
     daemon_reload: yes
 
-- name: Wait for tomcat to start
+- name: Wait for tomcat to start on port {{ http_port }}
   wait_for:
-    port: "{{ http_port | default(8080) }}"
+    port: "{{ http_port }}"
+    delay: 5
+    timeout: 60
