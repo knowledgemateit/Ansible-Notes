@@ -98,7 +98,6 @@ vi /etc/ansible/hosts
 
 ```ini
 [agents]
-[agents]
 agent ansible_host=54.159.58.173 ansible_user=root
 
 [master]
