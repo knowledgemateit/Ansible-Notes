@@ -1,0 +1,14 @@
+--- # command to execute: ansible-playbook 2.tagsbasic.yml --tags first
+-   hosts: master
+    tasks:
+    - debug:
+        msg: " this is 1st task"
+      tags: first
+
+    - debug:
+        msg: " this is 2nd task"
+      tags: second
+
+    - debug:
+        msg: " this is 3rd task"
+      tags: third

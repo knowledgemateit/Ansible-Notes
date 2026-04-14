@@ -1,0 +1,36 @@
+---
+- hosts: localhost
+  connection: local
+  gather_facts: False
+  
+  vars:
+    keypair: rajavan
+    instance_type: t2.micro
+    image: "ami-0b6c6ebed2801a5cb"
+    region: us-east-1
+    user_access_key: "xxxxxxxxxxxxxx"
+    user_secret_key: "xxxxxxxxxxxxxxxx"
+
+  tasks:
+    - name: Ensure Python dependencies are installed
+      pip:
+        name: 
+          - boto3
+          - botocore
+        state: present
+
+    - name: Launch AWS EC2 Instance
+      amazon.aws.ec2_instance:
+        name: "devops-test-server"
+        key_name: "{{ keypair }}"
+        instance_type: "{{ instance_type }}"
+        image_id: "{{ image }}"
+        region: "{{ region }}"
+        aws_access_key: "{{ user_access_key }}"
+        aws_secret_key: "{{ user_secret_key }}"
+        wait: yes
+      register: ec2_result
+
+    - name: Display Public IP
+      debug:
+        msg: "Server is up! IP: {{ ec2_result.instances[0].public_ip }}"

@@ -1,0 +1,12 @@
+--- # Debugging
+-   hosts: '{{ myHosts }}'
+    vars:
+        myHosts: master
+        pkg: telnet
+    tasks:
+    - name: Install telnet server on centos
+      yum:
+        name: '{{ pkg }}'
+        state: latest
+      register: result
+    - debug: var=result

@@ -1,0 +1,46 @@
+---
+- hosts: localhost
+  gather_facts: no
+  connection: local
+
+  vars:
+    s3_bucket_name: "divija-devops-test-2026"  # Ensure this is globally unique
+    aws_region: "us-east-1"
+    aws_access_key: "YOUR_ACCESS_KEY"
+    aws_secret_key: "YOUR_SECRET_KEY"
+
+  tasks:
+    - name: Install pip
+      yum:
+        name: pip
+        state: present
+        
+    - name: Ensure Python AWS dependencies are installed
+      pip:
+        name: 
+          - boto
+          - boto3
+          - botocore
+        state: present
+  
+    - name: Ensure S3 Bucket exists
+      amazon.aws.s3_bucket:
+        name: "{{ s3_bucket_name }}"
+        region: "{{ aws_region }}"
+        aws_access_key: "{{ aws_access_key }}"
+        aws_secret_key: "{{ aws_secret_key }}"
+        state: present
+        # Practical additions for modern S3 standards:
+        public_access:
+          block_public_acls: yes
+          block_public_policy: yes
+          ignore_public_acls: yes
+          restrict_public_buckets: yes
+      register: s3_result
+
+    - name: Print bucket details
+      debug:
+        msg: 
+          - "Bucket Name: {{ s3_result.name }}"
+          - "Region: {{ aws_region }}"
+          - "Creation Date: {{ s3_result.creation_date | default('Already Existed') }}"
