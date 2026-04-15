@@ -6,8 +6,6 @@
   vars:
     s3_bucket_name: "divija-devops-test-2026"  # Ensure this is globally unique
     aws_region: "us-east-1"
-    aws_access_key: "YOUR_ACCESS_KEY"
-    aws_secret_key: "YOUR_SECRET_KEY"
 
   tasks:
     - name: Pip installation
@@ -29,8 +27,6 @@
       amazon.aws.s3_bucket:
         name: "{{ s3_bucket_name }}"
         region: "{{ aws_region }}"
-        aws_access_key: "{{ aws_access_key }}"
-        aws_secret_key: "{{ aws_secret_key }}"
         state: present
         # Practical additions for modern S3 standards:
         public_access:
