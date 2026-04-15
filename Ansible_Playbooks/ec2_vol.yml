@@ -8,29 +8,31 @@
     availability_zone: us-east-1a
     volume_size: 10
     volume_type: gp3  # gp3 is the modern, cost-effective choice over gp2
-    aws_access_key: "your_access_key"
-    aws_secret_key: "your_secret_key"
+    aws_access_key: "xxxxxxxxx"
+    aws_secret_key: "xxxxxxxxx"
 
   tasks:
-    - name: Install pip
+    - name: Pip installation
       yum:
-        name: pip
+        name:
+          - python3-pip
+          - python3-devel
         state: present
-        
-    - name: Ensure Python AWS dependencies are installed
+
+    - name: Ensure Python dependencies are installed
       pip:
-        name: 
-          - boto
+        name:
           - boto3
           - botocore
+        executable: pip3
         state: present
 
     - name: Create an EBS volume
-      amazon.aws.ec2_volume:
+      amazon.aws.ec2_vol:
         region: "{{ region }}"
-        availability_zone: "{{ availability_zone }}"
+        zone: "{{ availability_zone }}"
         volume_type: "{{ volume_type }}"
-        size: "{{ volume_size }}"
+        volume_size: "{{ volume_size }}"
         aws_access_key: "{{ aws_access_key }}"
         aws_secret_key: "{{ aws_secret_key }}"
         state: present
