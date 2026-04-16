@@ -1,7 +1,13 @@
-- name: Install Amazon Corretto 17
+- name: Install Amazon Corretto 21 (Required for Jenkins Latest)
   dnf:
-    name: java-17-amazon-corretto-devel
+    name: java-21-amazon-corretto-devel
     state: present
+
+- name: Set Java 21 as default
+  alternatives:
+    name: java
+    path: /usr/lib/jvm/java-21-amazon-corretto.x86_64/bin/java
+    link: /usr/bin/java
 
 - name: Download Jenkins repository file
   get_url:
