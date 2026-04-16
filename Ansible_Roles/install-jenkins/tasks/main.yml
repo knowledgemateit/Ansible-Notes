@@ -1,59 +1,51 @@
 ---
-- name: Install and Configure Jenkins
-  hosts: all
-  become: yes
-  vars:
-    jenkins_port: 8081
-    java_21_path: "/usr/lib/jvm/java-21-amazon-corretto.x86_64"
+- name: Install Java 21 for Jenkins
+  dnf:
+    name: java-21-amazon-corretto-devel
+    state: present
 
-  tasks:
-    - name: Install Java 21 for Jenkins
-      dnf:
-        name: java-21-amazon-corretto-devel
-        state: present
+- name: Download Jenkins Repo
+  get_url:
+    url: https://pkg.jenkins.io/redhat-stable/jenkins.repo
+    dest: /etc/yum.repos.d/jenkins.repo
 
-    - name: Download Jenkins Repo
-      get_url:
-        url: https://pkg.jenkins.io/redhat-stable/jenkins.repo
-        dest: /etc/yum.repos.d/jenkins.repo
+- name: Import Jenkins GPG Key
+  rpm_key:
+    state: present
+    key: https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
 
-    - name: Import Jenkins GPG Key
-      rpm_key:
-        state: present
-        key: https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
+- name: Install Jenkins
+  dnf:
+    name: jenkins
+    state: latest
 
-    - name: Install Jenkins
-      dnf:
-        name: jenkins
-        state: latest
+- name: Create Systemd Override Directory
+  file:
+    path: /etc/systemd/system/jenkins.service.d
+    state: directory
 
-    - name: Create Systemd Override Directory
-      file:
-        path: /etc/systemd/system/jenkins.service.d
-        state: directory
+- name: Configure Jenkins Java 21 and Port Override
+  copy:
+    dest: /etc/systemd/system/jenkins.service.d/override.conf
+    content: |
+      [Service]
+      Environment="JAVA_HOME=/usr/lib/jvm/java-21-amazon-corretto.x86_64"
+      Environment="JENKINS_PORT=8081"
 
-    - name: Configure Jenkins Java 21 and Port Override
-      copy:
-        dest: /etc/systemd/system/jenkins.service.d/override.conf
-        content: |
-          [Service]
-          Environment="JAVA_HOME={{ java_21_path }}"
-          Environment="JENKINS_PORT={{ jenkins_port }}"
+- name: Ensure Jenkins ownership
+  file:
+    path: "{{ item }}"
+    owner: jenkins
+    group: jenkins
+    recurse: yes
+  loop:
+    - /var/lib/jenkins
+    - /var/cache/jenkins
+    - /var/log/jenkins
 
-    - name: Ensure Jenkins ownership
-      file:
-        path: "{{ item }}"
-        owner: jenkins
-        group: jenkins
-        recurse: yes
-      loop:
-        - /var/lib/jenkins
-        - /var/cache/jenkins
-        - /var/log/jenkins
-
-    - name: Start Jenkins
-      systemd:
-        name: jenkins
-        state: restarted
-        enabled: yes
-        daemon_reload: yes
+- name: Start Jenkins
+  systemd:
+    name: jenkins
+    state: restarted
+    enabled: yes
+    daemon_reload: yes
