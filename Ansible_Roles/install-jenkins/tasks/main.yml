@@ -1,24 +1,27 @@
-- name: Install Amazon Corretto 17 (Required for modern Jenkins)
+- name: Install Amazon Corretto 17
   dnf:
-	name: java-17-amazon-corretto-devel
-	state: present
+    name: java-17-amazon-corretto-devel
+    state: present
 
 - name: Download Jenkins repository file
   get_url:
-	url: https://pkg.jenkins.io/redhat-stable/jenkins.repo
-	dest: /etc/yum.repos.d/jenkins.repo
-	mode: '0644'
+    url: https://pkg.jenkins.io/redhat-stable/jenkins.repo
+    dest: /etc/yum.repos.d/jenkins.repo
+    mode: '0644'
 
-- name: Import Jenkins GPG Key (2023 version)
+- name: Import Jenkins GPG Key
   rpm_key:
-	state: present
-	key: https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
+    state: present
+    key: https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
 
 - name: Install Jenkins
   dnf:
-	name: jenkins
-	state: latest
-
-- name: Install jenkins server
-  yum: name=jenkins state=latest
+    name: jenkins
+    state: latest
   notify: Restart jenkins
+
+handlers:
+  - name: Restart jenkins
+    service:
+      name: jenkins
+      state: restarted
