@@ -4,12 +4,12 @@
     name: java-17-amazon-corretto-devel
     state: present
 
-- name: Add group "tomcat"
+- name: Create tomcat group
   group:
     name: tomcat
     state: present
 
-- name: Add user "tomcat"
+- name: Create tomcat user
   user:
     name: tomcat
     group: tomcat
@@ -17,27 +17,16 @@
     create_home: no
     shell: /bin/false
 
-- name: Download Tomcat 9
-  get_url:
-    url: https://archive.apache.org/dist/tomcat/tomcat-9/v9.0.98/bin/apache-tomcat-9.0.98.tar.gz
-    dest: /tmp/apache-tomcat-9.tar.gz
-
-- name: Create Tomcat Directory
-  file:
-    path: /opt/apache-tomcat-9.0.98
-    state: directory
-    owner: tomcat
-    group: tomcat
-
-- name: Extract Tomcat archive
+- name: Download and Extract Tomcat 9
   unarchive:
-    src: /tmp/apache-tomcat-9.tar.gz
+    src: https://archive.apache.org/dist/tomcat/tomcat-9/v9.0.98/bin/apache-tomcat-9.0.98.tar.gz
     dest: /opt/
     remote_src: yes
     owner: tomcat
     group: tomcat
+    creates: /opt/apache-tomcat-9.0.98/bin/startup.sh
 
-- name: Symlink install directory
+- name: Symlink Tomcat directory
   file:
     src: /opt/apache-tomcat-9.0.98
     path: /usr/share/tomcat
@@ -45,20 +34,15 @@
     owner: tomcat
     group: tomcat
 
-- name: Configure Tomcat server (Ports)
+- name: Configure Tomcat server and users
   template:
-    src: server.xml.j2
-    dest: /usr/share/tomcat/conf/server.xml
+    src: "{{ item.src }}"
+    dest: "/usr/share/tomcat/conf/{{ item.dest }}"
     owner: tomcat
     group: tomcat
-  notify: restart tomcat
-
-- name: Configure Tomcat users (Admin access)
-  template:
-    src: tomcat-users.xml.j2
-    dest: /usr/share/tomcat/conf/tomcat-users.xml
-    owner: tomcat
-    group: tomcat
+  loop:
+    - { src: 'server.xml.j2', dest: 'server.xml' }
+    - { src: 'tomcat-users.xml.j2', dest: 'tomcat-users.xml' }
   notify: restart tomcat
 
 - name: Install Systemd Unit File
@@ -73,7 +57,8 @@
       Type=forking
       User=tomcat
       Group=tomcat
-      Environment="JAVA_HOME=/usr/lib/jvm/java-11-amazon-corretto"
+      # FIXED: Updated to Java 17 path
+      Environment="JAVA_HOME=/usr/lib/jvm/jre-17"
       Environment="CATALINA_PID=/usr/share/tomcat/temp/tomcat.pid"
       Environment="CATALINA_HOME=/usr/share/tomcat"
       Environment="CATALINA_BASE=/usr/share/tomcat"
@@ -83,15 +68,15 @@
       [Install]
       WantedBy=multi-user.target
 
-- name: Start and Enable Tomcat service
+- name: Start and Enable Tomcat
   systemd:
     name: tomcat
     state: started
     enabled: yes
     daemon_reload: yes
 
-- name: Wait for tomcat to start on port {{ http_port }}
+- name: Wait for tomcat to start
   wait_for:
-    port: "{{ http_port }}"
+    port: "{{ http_port | default(8080) }}"
     delay: 5
     timeout: 60
