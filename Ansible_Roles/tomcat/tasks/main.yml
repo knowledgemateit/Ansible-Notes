@@ -1,86 +1,85 @@
 ---
-- name: Install Amazon Corretto 17
-  dnf:
-    name: java-17-amazon-corretto-devel
-    state: present
+- name: Install and Configure Tomcat 9
+  hosts: all
+  become: yes
+  vars:
+    http_port: 8090
+    admin_user: "admin"
+    admin_pass: "adminsecret"
+    java_17_path: "/usr/lib/jvm/java-17-amazon-corretto.x86_64"
 
-- name: Create tomcat group
-  group:
-    name: tomcat
-    state: present
+  tasks:
+    - name: Install Java 17 for Tomcat
+      dnf:
+        name: java-17-amazon-corretto-devel
+        state: present
 
-- name: Create tomcat user
-  user:
-    name: tomcat
-    group: tomcat
-    home: /usr/share/tomcat
-    create_home: no
-    shell: /bin/false
+    - name: Create Tomcat Group and User
+      group: { name: tomcat, state: present }
+    
+    - name: Create Tomcat User
+      user:
+        name: tomcat
+        group: tomcat
+        home: /usr/share/tomcat
+        create_home: no
+        shell: /bin/false
 
-- name: Download and Extract Tomcat 9
-  unarchive:
-    src: https://archive.apache.org/dist/tomcat/tomcat-9/v9.0.98/bin/apache-tomcat-9.0.98.tar.gz
-    dest: /opt/
-    remote_src: yes
-    owner: tomcat
-    group: tomcat
-    creates: /opt/apache-tomcat-9.0.98/bin/startup.sh
+    - name: Download and Extract Tomcat 9
+      unarchive:
+        src: https://archive.apache.org/dist/tomcat/tomcat-9/v9.0.98/bin/apache-tomcat-9.0.98.tar.gz
+        dest: /opt/
+        remote_src: yes
+        owner: tomcat
+        group: tomcat
+        creates: /opt/apache-tomcat-9.0.98/bin/startup.sh
 
-- name: Symlink Tomcat directory
-  file:
-    src: /opt/apache-tomcat-9.0.98
-    path: /usr/share/tomcat
-    state: link
-    owner: tomcat
-    group: tomcat
+    - name: Symlink and Fix Permissions
+      file:
+        src: /opt/apache-tomcat-9.0.98
+        path: /usr/share/tomcat
+        state: link
+        owner: tomcat
+        group: tomcat
 
-- name: Configure Tomcat server and users
-  template:
-    src: "{{ item.src }}"
-    dest: "/usr/share/tomcat/conf/{{ item.dest }}"
-    owner: tomcat
-    group: tomcat
-  loop:
-    - { src: 'server.xml.j2', dest: 'server.xml' }
-    - { src: 'tomcat-users.xml.j2', dest: 'tomcat-users.xml' }
-  notify: restart tomcat
+    - name: Configure Tomcat server.xml (Fixed JasperListener)
+      template:
+        src: server.xml.j2
+        dest: /usr/share/tomcat/conf/server.xml
+        owner: tomcat
+        group: tomcat
 
-- name: Install Systemd Unit File
-  copy:
-    dest: /etc/systemd/system/tomcat.service
-    content: |
-      [Unit]
-      Description=Apache Tomcat 9 Web Application Container
-      After=network.target
+    - name: Configure tomcat-users.xml
+      template:
+        src: tomcat-users.xml.j2
+        dest: /usr/share/tomcat/conf/tomcat-users.xml
+        owner: tomcat
+        group: tomcat
 
-      [Service]
-      Type=forking
-      User=tomcat
-      Group=tomcat
-      
-      # Use the absolute path to ensure no version confusion
-      Environment="JAVA_HOME=/usr/lib/jvm/java-17-amazon-corretto.x86_64"
-      Environment="CATALINA_PID=/usr/share/tomcat/temp/tomcat.pid"
-      Environment="CATALINA_HOME=/usr/share/tomcat"
-      Environment="CATALINA_BASE=/usr/share/tomcat"
-      # Adding extra memory parameters can help avoid silent startup crashes
-      Environment="CATALINA_OPTS=-Xms512M -Xmx1024M -server -XX:+UseParallelGC"
+    - name: Install Tomcat Systemd Service
+      copy:
+        dest: /etc/systemd/system/tomcat.service
+        content: |
+          [Unit]
+          Description=Tomcat 9
+          After=network.target
 
-      ExecStart=/usr/share/tomcat/bin/startup.sh
-      ExecStop=/usr/share/tomcat/bin/shutdown.sh
+          [Service]
+          Type=forking
+          User=tomcat
+          Group=tomcat
+          Environment="JAVA_HOME={{ java_17_path }}"
+          Environment="CATALINA_PID=/usr/share/tomcat/temp/tomcat.pid"
+          Environment="CATALINA_HOME=/usr/share/tomcat"
+          ExecStart=/usr/share/tomcat/bin/startup.sh
+          ExecStop=/usr/share/tomcat/bin/shutdown.sh
 
       [Install]
       WantedBy=multi-user.target
 
-- name: Start and Enable Tomcat
-  systemd:
-    name: tomcat
-    state: started
-    enabled: yes
-    daemon_reload: yes
-
-- name: Wait for tomcat to start
-  wait_for:
-    port: "{{ http_port | default(8080) }}"
-    delay: 5
-    timeout: 60
+    - name: Start Tomcat
+      systemd:
+        name: tomcat
+        state: restarted
+        enabled: yes
+        daemon_reload: yes
